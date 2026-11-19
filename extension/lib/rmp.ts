@@ -194,23 +194,32 @@ export function findSubmitButton(doc: Document): HTMLButtonElement | null {
   );
 }
 
+/** postMessage type sent by entrypoints/rmp-submit.content.ts when RMP's rating mutation succeeds. */
+export const SUBMITTED_MSG = 'profnudge:rating-submitted';
+
+/** Does this GraphQL request body look like RMP's "add a rating" mutation? */
+export const isRatingMutation = (body: string) => /\bmutation\b/i.test(body) && /rat(e|ing)/i.test(body);
+
 /**
- * After the student clicks Submit, RMP either leaves the add-rating page or
- * shows a thank-you message. Resolves true if that happens within `timeoutMs`.
+ * After the student clicks Submit, resolve true once RMP's rating mutation succeeds
+ * (reported by the main-world fetch hook) or a thank-you message appears.
+ * Leaving the page is NOT success: a failed submit followed by Back must not stop nudges.
  */
-export function waitForSubmitSuccess(doc: Document, startPath: string, timeoutMs = 60_000): Promise<boolean> {
+export function waitForSubmitSuccess(doc: Document, timeoutMs = 60_000): Promise<boolean> {
   return new Promise((resolve) => {
+    const finish = (ok: boolean) => {
+      clearInterval(timer);
+      window.removeEventListener('message', onMessage);
+      resolve(ok);
+    };
+    const onMessage = (e: MessageEvent) => {
+      if (e.source === window && e.data?.type === SUBMITTED_MSG) finish(true);
+    };
+    window.addEventListener('message', onMessage);
     const started = Date.now();
     const timer = setInterval(() => {
-      const left = location.pathname !== startPath && !location.pathname.startsWith('/add/');
-      const thanks = /thanks for (rating|your rating)|rating (has been )?submitted/i.test(doc.body.innerText);
-      if (left || thanks) {
-        clearInterval(timer);
-        resolve(true);
-      } else if (Date.now() - started > timeoutMs) {
-        clearInterval(timer);
-        resolve(false);
-      }
+      if (/thanks for (rating|your rating)|rating (has been )?submitted/i.test(doc.body.innerText)) finish(true);
+      else if (Date.now() - started > timeoutMs) finish(false);
     }, 500);
   });
 }

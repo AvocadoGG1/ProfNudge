@@ -42,10 +42,12 @@ fi
 
 read -rsp "Resend API key (input hidden, leave blank to keep the current one): " RESEND_KEY; echo
 read -rp  'From address, e.g. ProfNudge <nudge@yourdomain.com> (blank = keep current): ' MAIL_FROM
+read -rp  'Confirm page URL, e.g. https://<user>.github.io/ProfNudge/confirm.html (blank = keep current): ' CONFIRM_URL
 
 : > "$TMP/secrets.env"
 [[ -n "$RESEND_KEY" ]] && printf 'RESEND_API_KEY=%s\n' "$RESEND_KEY" >> "$TMP/secrets.env"
 [[ -n "$MAIL_FROM"  ]] && printf 'MAIL_FROM="%s"\n' "$MAIL_FROM" >> "$TMP/secrets.env"
+[[ -n "$CONFIRM_URL" ]] && printf 'CONFIRM_URL=%s\n' "$CONFIRM_URL" >> "$TMP/secrets.env"
 if [[ "$NEW_SECRETS" == 1 ]]; then
   ACTION_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
   CRON_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"

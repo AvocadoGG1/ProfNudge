@@ -3,7 +3,9 @@ import type { Reply } from '@/lib/messaging';
 import type { AppState, Msg, Term, TrackedProfessor } from '@/lib/types';
 
 const KEY = 'profnudge:state';
-type Local = Omit<AppState, 'email'>;
+type Removed = { rmpId: number; termKey: string };
+/** `removed`: professors untracked locally whose server rows still need deleting. */
+type Local = Omit<AppState, 'email'> & { removed?: Removed[] };
 
 async function loadLocal(): Promise<Local> {
   const r = await browser.storage.local.get(KEY);
@@ -28,10 +30,11 @@ async function sync(): Promise<void> {
   const user = await api.currentUser();
   if (!user) return;
   const s = await loadLocal();
+  for (const r of s.removed ?? []) await api.deleteProfessor(user.id, r.rmpId, r.termKey);
   for (const t of s.terms) await api.upsertTerm(user.id, t);
   for (const p of s.professors.filter((p) => !p.synced)) await api.upsertProfessor(user.id, p);
   const remote = await api.fetchRemote();
-  await saveLocal({ ...s, pendingEmail: null, terms: remote.terms, professors: remote.professors });
+  await saveLocal({ ...s, pendingEmail: null, removed: [], terms: remote.terms, professors: remote.professors });
 }
 
 async function handle(msg: Msg): Promise<AppState> {
@@ -60,9 +63,12 @@ async function handle(msg: Msg): Promise<AppState> {
     }
 
     case 'untrack':
+      // Remember the removal so the next sync deletes the server row too. Otherwise an untrack made
+      // while signed out (or offline) is undone when sync pulls the server's copy.
       s.professors = s.professors.filter((p) => !(p.rmpId === msg.rmpId && p.termKey === msg.termKey));
+      s.removed = [...(s.removed ?? []), { rmpId: msg.rmpId, termKey: msg.termKey }];
       await saveLocal(s);
-      if (user) await api.deleteProfessor(user.id, msg.rmpId, msg.termKey);
+      if (user) await sync();
       break;
 
     case 'setTermEnd': {
@@ -96,7 +102,7 @@ async function handle(msg: Msg): Promise<AppState> {
 
     case 'deleteAccount':
       await api.deleteAccount();
-      await saveLocal({ pendingEmail: null, professors: [], terms: [] });
+      await saveLocal({ pendingEmail: null, professors: [], terms: [], removed: [] });
       break;
   }
   return state();

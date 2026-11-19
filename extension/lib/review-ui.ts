@@ -157,13 +157,18 @@ export async function mountReviewPanel(prof: TrackedProfessor) {
   });
 
   // Mark done when the student's own Submit succeeds.
-  watchSubmit(prof.rmpId);
+  watchSubmit();
 
   root.append(panel);
 }
 
+/**
+ * One document-level listener for the tab's lifetime. RMP is a single-page app, so the student
+ * can move on to another professor's form without a reload: read the professor from the panel
+ * mounted at click time instead of capturing the first one.
+ */
 let watching = false;
-function watchSubmit(rmpId: number) {
+function watchSubmit() {
   if (watching) return;
   watching = true;
   document.addEventListener(
@@ -171,7 +176,9 @@ function watchSubmit(rmpId: number) {
     async (e) => {
       const btn = findSubmitButton(document);
       if (!btn || !(e.target instanceof Node) || !btn.contains(e.target)) return;
-      if (await waitForSubmitSuccess(document, location.pathname)) {
+      const rmpId = Number(document.getElementById(HOST_ID)?.dataset.rmpId);
+      if (!rmpId) return;
+      if (await waitForSubmitSuccess(document)) {
         await send({ type: 'markDone', rmpId });
       }
     },

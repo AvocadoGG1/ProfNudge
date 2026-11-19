@@ -1,39 +1,52 @@
-// One-click links from the nudge email: ?a=done|skip&t=<tracked_professor id> or ?a=unsub&t=<user id>, signed with k.
-// GET shows a confirm button (so link scanners in mail clients don't trigger actions); POST applies it.
-// POST with List-Unsubscribe=One-Click applies unsubscribe directly (RFC 8058).
+// Applies the signed one-click actions from the nudge email:
+//   ?a=done|skip&t=<tracked_professor id>  or  ?a=unsub&t=<user id>, signed with k.
+//
+// Supabase serves Edge Function HTML as text/plain on its default domain, so this function
+// renders no pages. The email links to a static confirm page (docs/confirm.html, CONFIRM_URL)
+// that shows a button and POSTs here; the button keeps mail-client link scanners from
+// triggering actions with a GET.
+//   GET  -> redirect to the confirm page (for older emails that linked here directly)
+//   POST -> apply the action, reply with JSON. Mail clients' RFC 8058 one-click unsubscribe
+//           (body "List-Unsubscribe=One-Click") lands here too.
 
 import { adminClient } from '../_shared/db.ts';
 import { type Action, verify } from '../_shared/tokens.ts';
 
-const LABEL: Record<Action, [button: string, done: string]> = {
-  done: ['Mark as reviewed', 'Marked as reviewed. Thanks for helping future students!'],
-  skip: ['Skip this professor', "Skipped. We won't remind you about this professor again."],
-  unsub: ['Unsubscribe from all reminders', "You're unsubscribed. No more ProfNudge emails."],
+const MESSAGES: Record<Action, string> = {
+  done: 'Marked as reviewed. Thanks for helping future students!',
+  skip: "Skipped. We won't remind you about this professor again.",
+  unsub: "You're unsubscribed. No more ProfNudge emails.",
 };
 
-const page = (body: string, status = 200) =>
-  new Response(
-    `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>ProfNudge</title>
-<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;padding:16px">
-<main style="max-width:420px;text-align:center">${body}</main></body>`,
-    { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
-  );
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'content-type',
+};
+
+const json = (body: unknown, status = 200) => Response.json(body, { status, headers: CORS });
+
+const isAction = (a: string | null): a is Action => a !== null && Object.hasOwn(MESSAGES, a);
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+
   const url = new URL(req.url);
-  const a = url.searchParams.get('a') as Action | null;
+  const a = url.searchParams.get('a');
   const t = url.searchParams.get('t') ?? '';
   const k = url.searchParams.get('k') ?? '';
 
-  if (!a || !(a in LABEL) || !(await verify(a, t, k))) return page('<h1>Link expired or invalid</h1>', 400);
-
   if (req.method === 'GET') {
-    return page(`<h1>ProfNudge</h1>
-<form method="post" action="${url.pathname}${url.search}">
-<button style="font:inherit;font-weight:600;background:#3b5bdb;color:#fff;border:0;border-radius:999px;padding:10px 20px;cursor:pointer">${LABEL[a][0]}</button>
-</form>`);
+    const page = Deno.env.get('CONFIRM_URL');
+    if (!page) return new Response('Open this link from the ProfNudge email.', { status: 404 });
+    const q = new URLSearchParams({ a: a ?? '', t, k, api: Deno.env.get('SUPABASE_URL')! });
+    return Response.redirect(`${page}?${q}`, 302);
   }
-  if (req.method !== 'POST') return page('Method not allowed', 405);
+  if (req.method !== 'POST') return json({ ok: false, message: 'Method not allowed' }, 405);
+
+  if (!isAction(a) || !(await verify(a, t, k))) {
+    return json({ ok: false, message: 'This link is expired or invalid.' }, 400);
+  }
 
   const db = adminClient();
   const { error } =
@@ -45,6 +58,6 @@ Deno.serve(async (req) => {
           .eq('id', t)
           .eq('status', 'waiting');
 
-  if (error) return page('<h1>Something went wrong</h1><p>Please try again later.</p>', 500);
-  return page(`<h1>Done</h1><p>${LABEL[a][1]}</p>`);
+  if (error) return json({ ok: false, message: 'Something went wrong. Please try again later.' }, 500);
+  return json({ ok: true, message: MESSAGES[a] });
 });

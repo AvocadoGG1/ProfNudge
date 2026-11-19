@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ProfNudge</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #111; --muted: #666; --accent: #3b5bdb; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #aaa; --accent: #748ffc; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif;
+         display: grid; place-items: center; min-height: 90vh; padding: 16px; }
+  main { max-width: 420px; text-align: center; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0;
+           border-radius: 999px; padding: 10px 20px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  p { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">ProfNudge</h1>
+  <p id="msg"></p>
+  <button id="go" hidden></button>
+</main>
+<script>
+  // Confirm page for the links in ProfNudge emails. It POSTs the signed action to the
+  // nudge-action Edge Function; nothing happens until the student clicks the button.
+  const LABELS = {
+    done: 'Mark as reviewed',
+    skip: 'Skip this professor',
+    unsub: 'Unsubscribe from all reminders',
+  };
+  const p = new URLSearchParams(location.search);
+  const a = p.get('a'), t = p.get('t'), k = p.get('k'), api = p.get('api') ?? '';
+  const title = document.getElementById('title');
+  const msg = document.getElementById('msg');
+  const go = document.getElementById('go');
+
+  if (!Object.hasOwn(LABELS, a) || !t || !k || !/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(api)) {
+    title.textContent = 'Link expired or invalid';
+  } else {
+    go.textContent = LABELS[a];
+    go.hidden = false;
+    go.addEventListener('click', async () => {
+      go.disabled = true;
+      try {
+        const q = new URLSearchParams({ a, t, k });
+        // text/plain keeps this a "simple" request, so no CORS preflight is needed.
+        const res = await fetch(`${api}/functions/v1/nudge-action?${q}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+        });
+        const body = await res.json();
+        title.textContent = body.ok ? 'Done' : 'Something went wrong';
+        msg.textContent = body.message;
+        go.hidden = body.ok;
+      } catch {
+        title.textContent = 'Something went wrong';
+        msg.textContent = 'Check your connection and try again.';
+      }
+      go.disabled = false;
+    });
+  }
+</script>
+</body>
+</html>

@@ -38,6 +38,10 @@ SPEC.md      v1 design decisions
 3. Finish the three dashboard steps the script prints: verify your Resend domain, point
    Supabase Auth's SMTP at Resend, and add `chrome-extension://<extension-id>/auth.html`
    to **Auth → URL Configuration → Redirect URLs**.
+4. Host the email confirm page. Supabase serves Edge Function HTML as plain text, so the
+   *Already reviewed / Skip / Unsubscribe* links open [`docs/confirm.html`](docs/confirm.html)
+   instead. Enable GitHub Pages (branch `main`, folder `/docs`) and enter
+   `https://<user>.github.io/<repo>/confirm.html` when the deploy script asks for the confirm page URL.
 
 ### Extension
 

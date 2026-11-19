@@ -45,6 +45,3 @@ export function termChoices(now = new Date()): Term[] {
   }
   return out;
 }
-
-/** Nudge offsets in days after term end. */
-export const NUDGE_OFFSETS = [0, 7, 21];

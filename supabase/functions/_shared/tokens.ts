@@ -34,3 +34,20 @@ export async function actionUrl(action: Action, target: string): Promise<string>
   const q = new URLSearchParams({ a: action, t: target, k: await sign(action, target) });
   return `${base}?${q}`;
 }
+
+/**
+ * Link for the email body. Supabase serves Edge Function HTML as text/plain on its default
+ * domain, so the confirm page is a static page (docs/confirm.html, hosted on GitHub Pages)
+ * set as CONFIRM_URL. It shows the button and POSTs back to nudge-action.
+ */
+export async function confirmUrl(action: Action, target: string): Promise<string> {
+  const page = Deno.env.get('CONFIRM_URL');
+  if (!page) return actionUrl(action, target);
+  const q = new URLSearchParams({
+    a: action,
+    t: target,
+    k: await sign(action, target),
+    api: Deno.env.get('SUPABASE_URL')!,
+  });
+  return `${page}?${q}`;
+}

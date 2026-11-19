@@ -32,7 +32,9 @@
     unsub: 'Unsubscribe from all reminders',
   };
   const p = new URLSearchParams(location.search);
-  const a = p.get('a'), t = p.get('t'), k = p.get('k'), api = p.get('api') ?? '';
+  // This deployment's Supabase project. Forks: change it, or pass ?api= in the link.
+  const DEFAULT_API = 'https://rgivwacrvekhghiihdgl.supabase.co';
+  const a = p.get('a'), t = p.get('t'), k = p.get('k'), api = p.get('api') ?? DEFAULT_API;
   const title = document.getElementById('title');
   const msg = document.getElementById('msg');
   const go = document.getElementById('go');

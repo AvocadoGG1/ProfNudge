@@ -51,21 +51,38 @@ async function renderEmail(userId: string, rows: Row[]) {
     ProfNudge is not affiliated with Rate My Professors.
   </p>
 </div>`;
+  // Plain text (see SEND_HTML): no hyperlinked words, so keep each link on its own line
+  // under a short label, and keep the links short.
+  const terms = [...new Set(rows.map((r) => r.terms.label))].join(' and ');
+  const rule = '─'.repeat(28);
   const text = [
-    'Your term is over.',
+    `${terms} is over 🎓`,
     '',
-    'Future students pick classes based on reviews like yours. ProfNudge fills in the form for you; it takes about a minute.',
+    n === 1
+      ? 'How was your professor? Your review helps the next students pick their classes, and ProfNudge fills in the form for you. It takes about a minute.'
+      : `How were your ${n} professors? Your reviews help the next students pick their classes, and ProfNudge fills in the form for you. About a minute each.`,
     '',
     ...links.flatMap(({ r, done, skip }) => [
-      `${r.name} (${[r.school, r.terms.label].filter(Boolean).join(', ')})`,
-      `  Review now: ${RMP}/add/professor-rating/${r.rmp_id}`,
-      `  Already reviewed: ${done}`,
-      `  Skip: ${skip}`,
+      rule,
+      `👩‍🏫 ${r.name}`,
+      ...(r.school ? [`   ${r.school}`] : []),
+      '',
+      '   ✏️ Leave a review:',
+      `   ${RMP}/add/professor-rating/${r.rmp_id}`,
+      '',
+      '   ✅ Already reviewed:',
+      `   ${done}`,
+      '',
+      '   ⏭️ Skip this professor:',
+      `   ${skip}`,
       '',
     ]),
-    'You get at most 3 reminders per class. ProfNudge never sees your review.',
-    `Unsubscribe: ${unsub}`,
-    'ProfNudge is not affiliated with Rate My Professors.',
+    rule,
+    '',
+    'At most 3 reminders per class. ProfNudge never sees your review.',
+    `Stop all reminders: ${unsub}`,
+    '',
+    'ProfNudge · not affiliated with Rate My Professors',
   ].join('\n');
   return { subject, html, text, oneClickUnsub };
 }

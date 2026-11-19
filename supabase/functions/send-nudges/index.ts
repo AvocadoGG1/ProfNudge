@@ -1,0 +1,109 @@
+// Daily job: email each student once, listing every tracked professor whose next nudge is due.
+// Invoked by pg_cron (see supabase/cron.sql) with `Authorization: Bearer <CRON_SECRET>`.
+
+import { adminClient } from '../_shared/db.ts';
+import { isDue } from '../_shared/schedule.ts';
+import { actionUrl } from '../_shared/tokens.ts';
+
+const RMP = 'https://www.ratemyprofessors.com';
+
+interface Row {
+  id: string;
+  user_id: string;
+  rmp_id: number;
+  name: string;
+  school: string;
+  nudges_sent: number;
+  terms: { label: string; end_date: string };
+}
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+async function renderEmail(userId: string, rows: Row[]) {
+  const items = await Promise.all(
+    rows.map(async (r) => {
+      const [done, skip] = await Promise.all([actionUrl('done', r.id), actionUrl('skip', r.id)]);
+      return `
+<tr><td style="padding:12px 0;border-bottom:1px solid #eee">
+  <strong>${esc(r.name)}</strong><br><span style="color:#666;font-size:13px">${esc(r.school)} · ${esc(r.terms.label)}</span><br>
+  <a href="${RMP}/add/professor-rating/${r.rmp_id}" style="display:inline-block;margin-top:8px;background:#3b5bdb;color:#fff;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600">Review now</a>
+  &nbsp;<a href="${done}" style="color:#666;font-size:13px">Already reviewed</a>
+  &nbsp;·&nbsp;<a href="${skip}" style="color:#666;font-size:13px">Skip</a>
+</td></tr>`;
+    }),
+  );
+  const unsub = await actionUrl('unsub', userId);
+  const n = rows.length;
+  const subject =
+    n === 1 ? `How was ${rows[0].name}? Leave a 1-minute review` : `${n} professors are waiting for your review`;
+  const html = `
+<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto;color:#111">
+  <h2 style="margin:0 0 8px">Your term is over 🎓</h2>
+  <p>Future students pick classes based on reviews like yours. ProfNudge fills in the form for you — it takes about a minute.</p>
+  <table style="width:100%;border-collapse:collapse">${items.join('')}</table>
+  <p style="color:#999;font-size:12px;margin-top:24px">
+    You get at most 3 reminders per class. ProfNudge never sees your review.
+    <a href="${unsub}" style="color:#999">Unsubscribe</a><br>
+    ProfNudge is not affiliated with Rate My Professors.
+  </p>
+</div>`;
+  return { subject, html, unsub };
+}
+
+Deno.serve(async (req) => {
+  if (req.headers.get('Authorization') !== `Bearer ${Deno.env.get('CRON_SECRET')}`) {
+    return new Response('forbidden', { status: 403 });
+  }
+
+  const db = adminClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await db
+    .from('tracked_professors')
+    .select('id,user_id,rmp_id,name,school,nudges_sent,terms!inner(label,end_date)')
+    .eq('status', 'waiting')
+    .lt('nudges_sent', 3)
+    .lte('terms.end_date', today);
+  if (error) return new Response(error.message, { status: 500 });
+
+  const due = (data as unknown as Row[]).filter((r) => isDue(r.terms.end_date, r.nudges_sent, today));
+  const byUser = Map.groupBy(due, (r) => r.user_id);
+
+  const { data: unsubbed } = await db.from('user_settings').select('user_id').eq('unsubscribed', true);
+  const skipUsers = new Set((unsubbed ?? []).map((u) => u.user_id));
+
+  let sent = 0;
+  const failures: string[] = [];
+  for (const [userId, rows] of byUser) {
+    if (skipUsers.has(userId)) continue;
+    const { data: u } = await db.auth.admin.getUserById(userId);
+    const to = u?.user?.email;
+    if (!to) continue;
+
+    const { subject, html, unsub } = await renderEmail(userId, rows);
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: Deno.env.get('MAIL_FROM'),
+        to,
+        subject,
+        html,
+        headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+      }),
+    });
+    if (!res.ok) {
+      failures.push(`${userId}: ${res.status}`);
+      continue;
+    }
+    sent++;
+    for (const r of rows) {
+      await db
+        .from('tracked_professors')
+        .update({ nudges_sent: r.nudges_sent + 1, last_nudged_at: new Date().toISOString() })
+        .eq('id', r.id);
+    }
+  }
+
+  return Response.json({ today, due: due.length, emailsSent: sent, failures });
+});

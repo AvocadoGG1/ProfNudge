@@ -75,5 +75,6 @@ Certify all three: not sold to third parties; not used or transferred for purpos
 
 ## Before submitting
 
-- [ ] Sending domain verified in Resend, `MAIL_FROM` uses it, click tracking off, `EMAIL_HTML=true`. Until then only the Resend account owner can receive sign-in codes, so nobody else could sign in.
+- [x] Sending domain verified in Resend (`mail.andrewleopold.com`), `MAIL_FROM` uses it, click tracking off, `EMAIL_HTML=true`. Email links go to https://andrewleopold.com/ProfNudge/confirm.
+- [ ] A friend signs in with a non-Gmail address and gets the code.
 - [ ] `npm run zip` from a clean build, and the zip loads with "Load unpacked" after extracting.

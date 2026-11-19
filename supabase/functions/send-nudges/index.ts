@@ -21,18 +21,19 @@ interface Row {
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function renderEmail(userId: string, rows: Row[]) {
-  const items = await Promise.all(
+  const links = await Promise.all(
     rows.map(async (r) => {
       const [done, skip] = await Promise.all([confirmUrl('done', r.id), confirmUrl('skip', r.id)]);
-      return `
+      return { r, done, skip };
+    }),
+  );
+  const items = links.map(({ r, done, skip }) => `
 <tr><td style="padding:12px 0;border-bottom:1px solid #eee">
   <strong>${esc(r.name)}</strong><br><span style="color:#666;font-size:13px">${esc(r.school)} · ${esc(r.terms.label)}</span><br>
   <a href="${RMP}/add/professor-rating/${r.rmp_id}" style="display:inline-block;margin-top:8px;background:#3b5bdb;color:#fff;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600">Review now</a>
   &nbsp;<a href="${done}" style="color:#666;font-size:13px">Already reviewed</a>
   &nbsp;·&nbsp;<a href="${skip}" style="color:#666;font-size:13px">Skip</a>
-</td></tr>`;
-    }),
-  );
+</td></tr>`);
   const unsub = await confirmUrl('unsub', userId);
   // RFC 8058 one-click POST from the mail client goes straight to the function.
   const oneClickUnsub = await actionUrl('unsub', userId);
@@ -50,8 +51,32 @@ async function renderEmail(userId: string, rows: Row[]) {
     ProfNudge is not affiliated with Rate My Professors.
   </p>
 </div>`;
-  return { subject, html, oneClickUnsub };
+  const text = [
+    'Your term is over.',
+    '',
+    'Future students pick classes based on reviews like yours. ProfNudge fills in the form for you; it takes about a minute.',
+    '',
+    ...links.flatMap(({ r, done, skip }) => [
+      `${r.name} (${[r.school, r.terms.label].filter(Boolean).join(', ')})`,
+      `  Review now: ${RMP}/add/professor-rating/${r.rmp_id}`,
+      `  Already reviewed: ${done}`,
+      `  Skip: ${skip}`,
+      '',
+    ]),
+    'You get at most 3 reminders per class. ProfNudge never sees your review.',
+    `Unsubscribe: ${unsub}`,
+    'ProfNudge is not affiliated with Rate My Professors.',
+  ].join('\n');
+  return { subject, html, text, oneClickUnsub };
 }
+
+/**
+ * Resend rewrites links in HTML email through its click-tracking host (resend-clicks.com),
+ * which some network filters block (e.g. ISP "security shield" routers). Plain-text email
+ * links are left alone. Send HTML only once you use your own domain with click tracking
+ * turned off in Resend, and set the EMAIL_HTML=true function secret.
+ */
+const SEND_HTML = Deno.env.get('EMAIL_HTML') === 'true';
 
 Deno.serve(async (req) => {
   if (req.headers.get('Authorization') !== `Bearer ${Deno.env.get('CRON_SECRET')}`) {
@@ -85,7 +110,7 @@ Deno.serve(async (req) => {
     const to = u?.user?.email;
     if (!to) continue;
 
-    const { subject, html, oneClickUnsub } = await renderEmail(userId, rows);
+    const { subject, html, text, oneClickUnsub } = await renderEmail(userId, rows);
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
@@ -93,7 +118,8 @@ Deno.serve(async (req) => {
         from: Deno.env.get('MAIL_FROM'),
         to,
         subject,
-        html,
+        text,
+        ...(SEND_HTML ? { html } : {}),
         headers: { 'List-Unsubscribe': `<${oneClickUnsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
       }),
     });

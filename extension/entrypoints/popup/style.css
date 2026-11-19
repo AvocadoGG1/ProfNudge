@@ -32,3 +32,5 @@ form { display: flex; gap: 6px; margin-top: 8px; }
 form input { flex: 1; font: inherit; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
 .err { color: #e03131; font-size: 12px; padding: 0 16px 8px; }
 footer { padding: 8px 16px; display: flex; gap: 8px; justify-content: flex-end; }
+
+button.link { border: 0; padding: 0; text-decoration: underline; color: inherit; border-radius: 0; }

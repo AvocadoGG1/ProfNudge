@@ -77,24 +77,36 @@ function render(st: AppState) {
 }
 
 function signInSection(st: AppState) {
-  const email = h('input', { type: 'email', placeholder: 'you@school.edu', value: st.pendingEmail ?? '', required: true });
-  const form = h('form', {}, email, h('button', { class: 'primary', type: 'submit' }, st.pendingEmail ? 'Resend link' : 'Sign in'));
+  if (st.pendingEmail) {
+    const pending = st.pendingEmail;
+    const code = h('input', { type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '10', placeholder: 'Code', required: true });
+    const form = h('form', {}, code, h('button', { class: 'primary', type: 'submit' }, 'Sign in'));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      act({ type: 'verifyCode', code: code.value });
+    });
+    queueMicrotask(() => code.focus());
+    return h(
+      'section',
+      {},
+      h('div', { class: 'muted' }, `Enter the code we emailed to ${pending}.`),
+      form,
+      h(
+        'div',
+        { class: 'muted' },
+        h('button', { class: 'link', type: 'button', onclick: () => act({ type: 'signIn', email: pending }) }, 'Send a new code'),
+        ' · ',
+        h('button', { class: 'link', type: 'button', onclick: () => act({ type: 'cancelSignIn' }) }, 'Use a different email'),
+      ),
+    );
+  }
+  const email = h('input', { type: 'email', placeholder: 'you@school.edu', required: true });
+  const form = h('form', {}, email, h('button', { class: 'primary', type: 'submit' }, 'Email me a code'));
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     act({ type: 'signIn', email: email.value.trim() });
   });
-  return h(
-    'section',
-    {},
-    h(
-      'div',
-      { class: 'muted' },
-      st.pendingEmail
-        ? `Sign-in link sent to ${st.pendingEmail}. Click it to turn on email reminders.`
-        : 'Sign in with your email to get reminders when your term ends.',
-    ),
-    form,
-  );
+  return h('section', {}, h('div', { class: 'muted' }, 'Sign in with your email to get reminders when your term ends.'), form);
 }
 
 act({ type: 'getState' });

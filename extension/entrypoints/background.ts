@@ -56,7 +56,7 @@ async function handle(msg: Msg): Promise<AppState> {
       await saveLocal(s);
       if (user) await sync();
       else if (msg.email) {
-        await api.sendMagicLink(msg.email);
+        await api.sendCode(msg.email);
         await saveLocal({ ...s, pendingEmail: msg.email });
       }
       break;
@@ -87,13 +87,18 @@ async function handle(msg: Msg): Promise<AppState> {
       break;
 
     case 'signIn':
-      await api.sendMagicLink(msg.email);
+      await api.sendCode(msg.email);
       await saveLocal({ ...s, pendingEmail: msg.email });
       break;
 
-    case 'authCallback':
-      await api.completeSignIn(msg.url);
+    case 'verifyCode':
+      if (!s.pendingEmail) throw new Error('Enter your email first.');
+      await api.verifyCode(s.pendingEmail, msg.code);
       await sync();
+      break;
+
+    case 'cancelSignIn':
+      await saveLocal({ ...s, pendingEmail: null });
       break;
 
     case 'signOut':

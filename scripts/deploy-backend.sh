@@ -75,7 +75,7 @@ step "Storing the cron job's URL and secret in Vault"
 $SB db query --remote -f "$TMP/vault.sql"
 
 step "Deploying Edge Functions"
-$SB functions deploy send-nudges nudge-action --no-verify-jwt --use-api
+$SB functions deploy send-nudges nudge-action send-auth-email --no-verify-jwt --use-api
 
 step "Writing extension/.env"
 $SB projects api-keys --output-format json > "$TMP/keys.json"
@@ -95,7 +95,8 @@ cat <<EOF
  2. Supabase Auth emails: Supabase's built-in mailer only sends a few emails per hour.
     Point it at Resend: Authentication > Emails > SMTP Settings
     (host smtp.resend.com, port 465, user "resend", password = your Resend API key).
- 3. After loading the extension in Chrome, copy its ID from chrome://extensions and add
-      chrome-extension://<extension-id>/auth.html
-    under Authentication > URL Configuration > Redirect URLs.
+ 3. Sign-in codes are sent by the send-auth-email function through Resend. Turn it on:
+    Authentication > Auth Hooks > Send Email > HTTPS, URL
+      $URL/functions/v1/send-auth-email
+    then generate a secret and store it:  npx supabase secrets set SEND_EMAIL_HOOK_SECRET=<secret>
 EOF

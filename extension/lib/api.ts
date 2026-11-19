@@ -30,23 +30,20 @@ export async function currentUser() {
   return data.session?.user ?? null;
 }
 
-export async function sendMagicLink(email: string) {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: browser.runtime.getURL('/auth.html') },
-  });
+/**
+ * Sign-in is a one-time code typed into the extension, not a magic link: school mail
+ * filters (e.g. Microsoft Safe Links) open links to scan them, which uses up a magic link
+ * before the student clicks it. A scanner can't type a code.
+ * The Supabase "Magic Link" and "Confirm signup" email templates must show {{ .Token }}.
+ */
+export async function sendCode(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
   if (error) throw error;
 }
 
-/** auth.html receives `#access_token=...&refresh_token=...` from the magic link. */
-export async function completeSignIn(url: string) {
-  const hash = new URL(url).hash.slice(1);
-  const p = new URLSearchParams(hash);
-  const access_token = p.get('access_token');
-  const refresh_token = p.get('refresh_token');
-  if (!access_token || !refresh_token) throw new Error(p.get('error_description') ?? 'Sign-in link is missing tokens');
-  const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-  if (error) throw error;
+export async function verifyCode(email: string, code: string) {
+  const { error } = await supabase.auth.verifyOtp({ email, token: code.replace(/\s/g, ''), type: 'email' });
+  if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or expired. Check it, or send a new one.' : error.message);
 }
 
 export async function upsertTerm(userId: string, t: Term) {

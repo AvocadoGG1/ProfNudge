@@ -11,9 +11,5 @@ export default defineConfig({
       // Supabase project; set at build time via VITE_SUPABASE_URL.
       'https://*.supabase.co/*',
     ],
-    // The magic-link email redirects here, so the page must be reachable from the web.
-    web_accessible_resources: [
-      { resources: ['auth.html'], matches: ['<all_urls>'] },
-    ],
   },
 });

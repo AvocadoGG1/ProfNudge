@@ -36,8 +36,9 @@ SPEC.md      v1 design decisions
    bash scripts/deploy-backend.sh <project-ref>
    ```
 3. Finish the three dashboard steps the script prints: verify your Resend domain, point
-   Supabase Auth's SMTP at Resend, and add `chrome-extension://<extension-id>/auth.html`
-   to **Auth → URL Configuration → Redirect URLs**.
+   Supabase Auth's SMTP at Resend, and turn on the **Send Email** auth hook so sign-in codes go
+   out through [`send-auth-email`](supabase/functions/send-auth-email/index.ts) (students type a
+   code; school mail scanners would use up a magic link).
 4. Host the email confirm page. Supabase serves Edge Function HTML as plain text, so the
    *Already reviewed / Skip / Unsubscribe* links open [`docs/confirm.html`](docs/confirm.html)
    instead. Enable GitHub Pages (branch `main`, folder `/docs`) and enter

@@ -44,6 +44,47 @@ export async function mountTrackButton(rmpId: number) {
   if (r.state) render(r.state);
 }
 
+/** Second step of the Track dialog for a signed-out student: type the emailed code. */
+function showCodeStep(
+  backdrop: HTMLElement,
+  form: HTMLFormElement,
+  email: string,
+  profName: string,
+  done: (st: AppState) => void,
+) {
+  const code = h('input', { type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '10', placeholder: '123456' });
+  const msg = h('div');
+  const verify = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Sign in');
+  const resend = h('button', { class: 'btn btn-ghost', type: 'button' }, 'Send a new code');
+  resend.addEventListener('click', async () => {
+    const r = await send({ type: 'signIn', email });
+    msg.replaceChildren(h('div', { class: r.ok ? 'ok' : 'err' }, r.ok ? `New code sent to ${email}.` : r.error));
+  });
+
+  const step = h(
+    'form',
+    { class: 'card' },
+    h('h2', {}, 'Check your email'),
+    h('div', {}, `We sent a sign-in code to ${email}. Type it here to turn on reminders. ${profName} is saved either way.`),
+    h('label', {}, 'Sign-in code'),
+    code,
+    msg,
+    h('div', { class: 'actions' }, resend, h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => backdrop.remove() }, 'Later'), verify),
+  );
+  step.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!code.value.trim()) return;
+    verify.disabled = true;
+    const r = await send({ type: 'verifyCode', code: code.value });
+    verify.disabled = false;
+    if (r.state) done(r.state);
+    if (r.ok) backdrop.remove();
+    else msg.replaceChildren(h('div', { class: 'err' }, r.error));
+  });
+  form.replaceWith(step);
+  code.focus();
+}
+
 function termLabel(st: AppState, key: string) {
   return st.terms.find((t) => t.key === key)?.label ?? key;
 }
@@ -83,7 +124,7 @@ function openDialog(
     endInput,
     needsEmail && h('label', {}, 'Email for the reminder'),
     needsEmail && emailInput,
-    needsEmail && h('div', { class: 'muted' }, "We'll send a sign-in link. Click it once and you're set."),
+    needsEmail && h('div', { class: 'muted' }, "We'll email you a sign-in code to type in next."),
     msg,
     h('div', { class: 'actions' }, h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => backdrop.remove() }, 'Cancel'), submit),
   );
@@ -107,16 +148,9 @@ function openDialog(
       msg.replaceChildren(h('div', { class: 'err' }, r.error));
       return;
     }
-    if (r.state.email) {
-      backdrop.remove();
-    } else {
-      form.replaceChildren(
-        h('h2', {}, 'Check your email'),
-        h('div', {}, `We sent a sign-in link to ${email}. ${prof.name} is saved and will sync once you click it.`),
-        h('div', { class: 'actions' }, h('button', { class: 'btn btn-primary', type: 'button', onclick: () => backdrop.remove() }, 'Got it')),
-      );
-    }
     done(r.state);
+    if (r.state.email) backdrop.remove();
+    else showCodeStep(backdrop, form, email!, prof.name, done);
   });
 
   root.append(backdrop);

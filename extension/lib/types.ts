@@ -19,7 +19,7 @@ export interface Term {
 
 export interface AppState {
   email: string | null;
-  pendingEmail: string | null; // magic link sent, not yet clicked
+  pendingEmail: string | null; // sign-in code sent, not yet entered
   professors: TrackedProfessor[];
   terms: Term[];
 }
@@ -34,4 +34,5 @@ export type Msg =
   | { type: 'signIn'; email: string }
   | { type: 'signOut' }
   | { type: 'deleteAccount' }
-  | { type: 'authCallback'; url: string };
+  | { type: 'verifyCode'; code: string }
+  | { type: 'cancelSignIn' };

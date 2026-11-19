@@ -20,7 +20,7 @@ Existing open-source RMP extensions are all *read-side* (show ratings while you 
 ### 1. Track
 - A **Track** button is injected on every RMP professor page (`/professor/{id}`).
 - First click: in-page dialog asks for email (if not signed in) and term + term end date (prefilled with a default).
-- Email sign-in uses a **Supabase magic link**. The link lands on the extension's `auth.html` page, which stores the session.
+- Email sign-in uses a **one-time code** (Supabase email OTP) typed into the Track dialog or popup. Not a magic link: school mail filters open links to scan them, which uses up a magic link before the student clicks it.
 - Professors tracked before sign-in completes are kept locally and synced on sign-in.
 
 ### 2. Nudge

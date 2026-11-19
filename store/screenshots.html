@@ -1,0 +1,149 @@
+<!doctype html>
+<!-- Source for the Chrome Web Store screenshots. Render each slide at 1280x800:
+     msedge --headless --window-size=1280,800 --screenshot=out.png "file:///.../screenshots.html?s=1" -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 800px; overflow: hidden; font-family: "Segoe UI", system-ui, sans-serif;
+         background: linear-gradient(135deg, #eef2ff 0%, #f8f9ff 60%, #fff 100%); color: #111; }
+  .slide { display: none; width: 1280px; height: 800px; padding: 72px 80px; gap: 64px; align-items: center; }
+  .slide.on { display: flex; }
+  .copy { width: 420px; flex: none; }
+  .step { color: #3b5bdb; font-weight: 700; font-size: 18px; letter-spacing: 1px; text-transform: uppercase; }
+  h1 { font-size: 46px; line-height: 1.1; margin: 14px 0 20px; }
+  .copy p { font-size: 21px; line-height: 1.5; color: #444; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-top: 40px; font-weight: 700; font-size: 20px; color: #333; }
+  .brand img { width: 40px; height: 40px; }
+  .stage { flex: 1; position: relative; height: 100%; }
+  .browser { position: absolute; inset: 0; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(30,40,90,.18); overflow: hidden; }
+  .bar { height: 40px; background: #f1f3f5; display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: #dee2e6; }
+  .url { margin-left: 12px; flex: 1; height: 24px; border-radius: 12px; background: #fff; color: #868e96; font-size: 13px; padding: 3px 14px; }
+  .page { padding: 32px 36px; color: #212529; }
+  .rating { display: flex; gap: 22px; align-items: center; }
+  .score { font-size: 64px; font-weight: 800; }
+  .muted { color: #868e96; font-size: 14px; }
+  .pname { font-size: 34px; font-weight: 800; margin-top: 6px; }
+  .ghost { height: 14px; border-radius: 7px; background: #f1f3f5; margin: 14px 0; }
+  .btn { display: inline-block; border: 0; border-radius: 999px; padding: 10px 18px; font-weight: 600; font-size: 15px; }
+  .primary { background: #3b5bdb; color: #fff; }
+  .ghostbtn { border: 1px solid #ced4da; color: #333; background: #fff; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.22); padding: 22px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; color: #333; }
+  .field { border: 1px solid #ced4da; border-radius: 8px; padding: 9px 11px; font-size: 14px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid #ced4da; border-radius: 999px; padding: 5px 11px; font-size: 13px; color: #333; }
+  .chip.on { background: #3b5bdb; border-color: #3b5bdb; color: #fff; }
+  .overlay { position: absolute; inset: 40px 0 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; }
+  .prompt { display: flex; gap: 6px; align-items: center; font-size: 13px; margin-top: 6px; }
+  .prompt .field { flex: 1; padding: 6px 9px; }
+  .formrow { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f3f5; font-size: 15px; }
+  .filled { color: #3b5bdb; font-weight: 700; }
+  .mail { font-family: "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.6; }
+  .popup { width: 340px; }
+  .prof { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f1f3f5; }
+  .prof .n { flex: 1; font-weight: 600; font-size: 14px; }
+  .badge { font-size: 12px; border-radius: 999px; padding: 3px 9px; background: #e7f5ec; color: #1e7b45; font-weight: 600; }
+  .small { padding: 6px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- 1: Track -->
+<section class="slide" id="s1">
+  <div class="copy">
+    <div class="step">Step 1 · Track</div>
+    <h1>Pick your classes. Click Track.</h1>
+    <p>On any professor's Rate My Professors page, choose the term you're taking the class. That's it until the term ends.</p>
+    <div class="brand"><img src="../extension/public/icon-128.png" alt="">ProfNudge</div>
+  </div>
+  <div class="stage">
+    <div class="browser">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">ratemyprofessors.com/professor/…</span></div>
+      <div class="page">
+        <div class="rating"><div class="score">4.6</div><div class="muted">Overall quality<br>based on 52 ratings</div></div>
+        <div class="pname">Dr. Maya Chen</div>
+        <div class="muted">Professor in the Computer Science department</div>
+        <div style="margin-top:16px"><span class="btn primary">🔔 Track — remind me to review</span></div>
+        <div class="ghost" style="width:70%;margin-top:28px"></div><div class="ghost" style="width:55%"></div><div class="ghost" style="width:62%"></div>
+      </div>
+      <div class="overlay">
+        <div class="card" style="width:390px">
+          <div style="font-size:19px;font-weight:700">Remind me to review Dr. Maya Chen</div>
+          <div class="muted" style="margin-top:4px">We email you when the term ends — 3 reminders max. Your review itself never leaves your browser.</div>
+          <label>Which term are you taking this class?</label><div class="field">Spring 2027</div>
+          <label>When does that term end (after finals)?</label><div class="field">05/15/2027</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><span class="btn ghostbtn">Cancel</span><span class="btn primary">Track</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2: Nudge -->
+<section class="slide" id="s2">
+  <div class="copy">
+    <div class="step">Step 2 · Get nudged</div>
+    <h1>One email when the term ends.</h1>
+    <p>Every professor you haven't reviewed, in one list. Three reminders at most, then it stops. Mark one as reviewed or skip it right from the email.</p>
+    <div class="brand"><img src="../extension/public/icon-128.png" alt="">ProfNudge</div>
+  </div>
+  <div class="stage">
+    <div class="browser">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">Inbox</span></div>
+      <div class="page mail">
+        <div style="font-weight:700;font-size:18px">How was Dr. Maya Chen? Leave a 1-minute review</div>
+        <div class="muted" style="margin-bottom:18px">ProfNudge · to me</div>
+        <div>Spring 2027 is over 🎓</div><br>
+        <div>How was your professor? Your review helps the next students pick their classes, and ProfNudge fills in the form for you. It takes about a minute.</div><br>
+        <div>────────────────────────────</div>
+        <div>👩‍🏫 <b>Dr. Maya Chen</b></div>
+        <div style="padding-left:20px">State University<br><br>✏️ Leave a review:<br><span style="color:#1c63d6;text-decoration:underline">https://www.ratemyprofessors.com/add/professor-rating/…</span><br><br>✅ Already reviewed:<br><span style="color:#1c63d6;text-decoration:underline">https://…/confirm?a=done…</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3: Review -->
+<section class="slide" id="s3">
+  <div class="copy">
+    <div class="step">Step 3 · Review in a minute</div>
+    <h1>Tap, finish a sentence, done.</h1>
+    <p>ProfNudge fills in the Rate My Professors form for you. You check it and click Submit yourself. Your answers never leave your browser.</p>
+    <div class="brand"><img src="../extension/public/icon-128.png" alt="">ProfNudge</div>
+  </div>
+  <div class="stage">
+    <div class="browser">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">ratemyprofessors.com/add/professor-rating/…</span></div>
+      <div class="page" style="width:230px;padding-right:0">
+        <div style="font-size:19px;font-weight:800;margin-bottom:8px">Rate Dr. Chen</div>
+        <div class="formrow">Quality <span class="filled">5</span></div>
+        <div class="formrow">Difficulty <span class="filled">3</span></div>
+        <div class="formrow">Take again <span class="filled">Yes</span></div>
+        <div class="formrow">Grade <span class="filled">A-</span></div>
+        <div class="formrow">Tags <span class="filled">3 selected</span></div>
+        <div class="formrow">Review <span class="filled">✓ filled</span></div>
+      </div>
+      <div class="card" style="position:absolute;top:58px;right:18px;width:345px">
+        <div style="font-size:18px;font-weight:700">Review Dr. Maya Chen</div>
+        <div class="muted" style="margin-top:3px">About a minute. Nothing here is sent to ProfNudge.</div>
+        <label>Quality</label><div class="chips"><span class="chip">1</span><span class="chip">2</span><span class="chip">3</span><span class="chip">4</span><span class="chip on">5</span></div>
+        <label>Would you take them again?</label><div class="chips"><span class="chip on">Yes</span><span class="chip">No</span></div>
+        <label>Tags (up to 3)</label><div class="chips"><span class="chip on">Clear grading</span><span class="chip on">Caring</span><span class="chip">Tough grader</span><span class="chip on">Gives good feedback</span></div>
+        <label>Finish these sentences</label>
+        <div class="prompt">Overall, the class was <span class="field">challenging but worth it</span></div>
+        <div class="prompt">To do well, <span class="field">start projects early</span></div>
+        <div style="margin-top:16px"><span class="btn primary">Fill the RMP form ↓</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const s = new URLSearchParams(location.search).get('s') || '1';
+  document.getElementById('s' + s).classList.add('on');
+</script>
+</body>
+</html>

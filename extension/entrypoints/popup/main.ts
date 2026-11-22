@@ -1,19 +1,36 @@
 import { send, type Reply } from '@/lib/messaging';
+import { createPastePanel } from '@/lib/paste-ui';
 import { addRatingUrl, professorUrl } from '@/lib/rmp';
 import type { AppState, Msg } from '@/lib/types';
 import { h } from '@/lib/ui';
 
 const app = document.getElementById('app')!;
+const top = h('div');
+const bottom = h('div');
+const paste = createPastePanel((msg) => act(msg, false));
+app.append(top, paste.element, bottom);
 let error = '';
 
-async function act(msg: Msg) {
+async function act(msg: Msg, showError = true) {
   const r: Reply = await send(msg);
-  error = r.ok ? '' : r.error;
+  if (showError) error = r.ok ? '' : r.error;
   if (r.state) render(r.state);
+  return r;
+}
+
+/** "v0.1.0 · dev · built Nov 21, 11:48 AM": tells you which build is loaded. */
+function versionLabel() {
+  const built = new Date(__BUILD_TIME__).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return `v${browser.runtime.getManifest().version} · ${import.meta.env.DEV ? 'dev' : 'release'} · built ${built}`;
 }
 
 function render(st: AppState) {
-  const header = h('header', {}, h('h1', {}, '🔔 ProfNudge'), h('span', { class: 'muted' }, st.email ?? 'Not signed in'));
+  const header = h(
+    'header',
+    {},
+    h('div', {}, h('h1', {}, '🔔 ProfNudge'), h('div', { class: 'muted version', title: `Built ${new Date(__BUILD_TIME__).toLocaleString()}` }, versionLabel())),
+    h('span', { class: 'muted' }, st.email ?? 'Not signed in'),
+  );
 
   const account = st.email ? null : signInSection(st);
 
@@ -54,7 +71,7 @@ function render(st: AppState) {
 
   const body = sections.length
     ? sections
-    : [h('div', { class: 'empty' }, 'Nothing tracked yet. Open a professor on Rate My Professors and click Track.')];
+    : [h('div', { class: 'empty' }, 'No professors tracked yet.')];
 
   const footer = st.email
     ? h(
@@ -73,7 +90,9 @@ function render(st: AppState) {
       )
     : null;
 
-  app.replaceChildren(header, ...(account ? [account] : []), ...(error ? [h('div', { class: 'err' }, error)] : []), ...body, ...(footer ? [footer] : []));
+  top.replaceChildren(header, ...(account ? [account] : []), ...(error ? [h('div', { class: 'err' }, error)] : []));
+  paste.update(st);
+  bottom.replaceChildren(...body, ...(footer ? [footer] : []));
 }
 
 function signInSection(st: AppState) {
@@ -85,7 +104,9 @@ function signInSection(st: AppState) {
       e.preventDefault();
       act({ type: 'verifyCode', code: code.value });
     });
-    queueMicrotask(() => code.focus());
+    queueMicrotask(() => {
+      if (document.activeElement === document.body) code.focus();
+    });
     return h(
       'section',
       {},

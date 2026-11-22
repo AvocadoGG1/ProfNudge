@@ -19,14 +19,19 @@ Copy these into the Chrome Web Store Developer Dashboard. Upload `extension/.out
 > You meant to review your professor. Then the term ended, and you forgot. ProfNudge fixes that.
 >
 > HOW IT WORKS
-> 1. Track: while you pick classes, click "Track" on any professor's Rate My Professors page and choose the term.
+> 1. Track: paste your class schedule into the ProfNudge popup, choose your school, and confirm the professors and term. You can also click "Track" on a professor's Rate My Professors page.
 > 2. Get nudged: when the term ends, you get one email listing every professor you haven't reviewed yet. At most 3 reminders per class, then it stops.
 > 3. Review in a minute: open the rating page and the ProfNudge panel walks you through it. Tap scores and tags, finish a few sentence starters, and ProfNudge fills in the Rate My Professors form. You check it and click Submit yourself.
 >
 > When you submit, ProfNudge marks that professor as reviewed and stops reminding you. You can also mark one as reviewed or skip it from the email.
 >
+> FEATURES
+> • Find professors from a pasted class schedule and track them together for one term.
+> • Add someone else by searching for professors at your school.
+>
 > PRIVATE BY DESIGN
 > • Your review text, scores, tags and grade never leave your browser. ProfNudge only fills in the form on the page.
+> • Your pasted schedule and course codes stay in your browser.
 > • The server only knows your email, which professors you track, and your term end dates.
 > • Delete your account and all data from the popup at any time.
 >
@@ -53,8 +58,8 @@ Copy these into the Chrome Web Store Developer Dashboard. Upload `extension/.out
 
 **Permission justifications:**
 
-- **storage:** Saves the professors you track, your term end dates and your sign-in session in the browser, so tracking works before you sign in and while offline.
-- **Host permission `https://www.ratemyprofessors.com/*`:** Adds the Track button to professor pages, shows the review panel on the add-rating page, fills in the rating form when you click "Fill the form", and notices when your rating was submitted so reminders stop.
+- **storage:** Saves tracked professors, term end dates and the sign-in session locally. Also saves the chosen school, cached roster and course codes for paste-in tracking.
+- **Host permission `https://www.ratemyprofessors.com/*`:** Searches schools and professors for paste-in tracking, adds the Track button to professor pages, and opens the review panel on the add-rating page. It fills the rating form on request and notices when a rating is submitted so reminders stop.
 - **Host permission `https://<project>.supabase.co/*`:** ProfNudge's own backend. Syncs your tracked professors and term end dates so the reminder email can be sent, and handles email sign-in.
 
 **Remote code:** No, I am not using remote code. (All JavaScript ships in the package; the backend is called with plain API requests.)
@@ -62,7 +67,7 @@ Copy these into the Chrome Web Store Developer Dashboard. Upload `extension/.out
 **Data usage** — check these and nothing else:
 
 - **Personally identifiable information:** email address (sign-in and reminders).
-- **Website content:** the names and IDs of professors you choose to track, read from Rate My Professors pages.
+- **Website content:** the names and IDs of professors you choose to track, retrieved from Rate My Professors.
 
 Certify all three: not sold to third parties; not used or transferred for purposes unrelated to the single purpose; not used for creditworthiness or lending.
 

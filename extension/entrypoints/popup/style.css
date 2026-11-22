@@ -14,6 +14,7 @@
 body { margin: 0; width: 360px; font: 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
 header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 header h1 { font-size: 16px; margin: 0; }
+header .version { font-size: 11px; }
 section { padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .term-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
 .term-head strong { font-size: 14px; }
@@ -34,3 +35,28 @@ form input { flex: 1; font: inherit; padding: 4px 8px; border-radius: 6px; borde
 footer { padding: 8px 16px; display: flex; gap: 8px; justify-content: flex-end; }
 
 button.link { border: 0; padding: 0; text-decoration: underline; color: inherit; border-radius: 0; }
+
+.paste-stack { display: grid; gap: 10px; }
+.paste-stack[hidden], .paste-school[hidden] { display: none; }
+#paste-panel { margin-top: 10px; }
+.paste-section label { display: block; margin-bottom: 4px; font-weight: 600; }
+.paste-section input[type=search], .paste-section select, .paste-section textarea {
+  width: 100%; font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+}
+.paste-section textarea { display: block; resize: vertical; }
+.paste-school, .paste-actions { display: flex; align-items: center; gap: 8px; }
+.paste-school { justify-content: space-between; }
+.paste-section button:disabled { opacity: .6; cursor: default; }
+.paste-section p { margin: 0; }
+.paste-error { padding: 0; }
+.paste-results { max-height: 145px; overflow: auto; }
+.paste-results button { display: block; width: 100%; text-align: left; border-radius: 6px; margin-top: 4px; }
+.paste-results button:hover, .paste-results button:focus-visible { background: color-mix(in srgb, var(--line) 65%, var(--bg)); }
+.paste-results .muted, .paste-candidate .muted { display: block; }
+.paste-matches { display: grid; gap: 4px; max-height: 220px; overflow: auto; padding: 2px; }
+.paste-matches fieldset { min-width: 0; margin: 0; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; }
+.paste-matches legend { font-size: 12px; overflow-wrap: anywhere; }
+.paste-section .paste-candidate { display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; margin: 0; font-weight: 400; }
+.paste-candidate input { margin: 3px 0 0; accent-color: var(--brand); }
+.paste-candidate.tracked { color: var(--muted); }
+.paste-possible { padding-left: 19px; }

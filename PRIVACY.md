@@ -14,6 +14,7 @@ ProfNudge sends you reminders to review professors you chose to track. This page
 ## What never leaves your browser
 
 - Your review text, scores, tags, grade and every other answer you type into the review panel.
+- Your pasted schedule text and course codes. The extension stores your chosen school in your browser and queries Rate My Professors search directly from your browser to find schools and professors.
 - Your browsing history. ProfNudge only runs on ratemyprofessors.com pages.
 - What happens on Rate My Professors pages. To notice that you submitted a rating, ProfNudge checks Rate My Professors' own response to your submission inside the page; only "this professor is reviewed" is recorded.
 

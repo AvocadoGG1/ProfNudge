@@ -23,6 +23,13 @@ Existing open-source RMP extensions are all *read-side* (show ratings while you 
 - Email sign-in uses a **one-time code** (Supabase email OTP) typed into the Track dialog or popup. Not a magic link: school mail filters open links to scan them, which uses up a magic link before the student clicks it.
 - Professors tracked before sign-in completes are kept locally and synced on sign-in.
 
+#### Track (paste-in)
+- In the popup, open **Add professors** and choose a Rate My Professors school. If you already track a professor, the school search starts with that professor's school name.
+- Paste a class schedule and click **Find professors**. The extension loads the school's roster directly from RMP in the student's browser, shows loading progress, and caches the roster locally for 30 days. **Refresh list** fetches a fresh roster on demand.
+- Matches that include a first name or initial and last name are preselected. Last-name-only matches need confirmation, and shared last names let the student choose a candidate. The student can also search for someone else at the same school.
+- Choose one term and confirm the selection. Professors already tracked for that term are disabled. The professors use the same reminders and review overlay as page-based tracking. When a match includes a course code, it prefills the course field on that browser at review time.
+- If RMP search fails, the popup keeps the paste and points the student to **Track** on the professor's RMP page.
+
 ### 2. Nudge
 - A daily Supabase cron job calls the `send-nudges` Edge Function.
 - For each tracked professor still `waiting`, nudges are due at **term end, +7 days, +21 days** (max 3).
@@ -42,19 +49,20 @@ A professor's nudges stop when any of:
 - 3 nudges have been sent
 
 ### 5. Popup
-Management only: tracked professors grouped by term with status, untrack, edit term end date, sign-in state, *Review now* per row. No review writing in the popup.
+The popup supports paste-in tracking, sign-in, and management of tracked professors grouped by term. Each row shows status and supports untracking, and the term end date can be edited. **Review now** opens the review page on RMP.
 
 ## Data and privacy
 
-The server stores **only reminder data**:
+The server stores **only reminder data**. The extension also keeps some data local to the browser.
 
-| Table | Fields |
+| Storage | Fields |
 |---|---|
 | `terms` | user, term key (e.g. `fall-2026`), end date |
 | `tracked_professors` | user, RMP id, professor display name + school (public info, needed for the email), term key, status, nudges sent |
 | `user_settings` | user, unsubscribed flag |
+| Browser only | chosen paste-in school, cached RMP roster and course codes |
 
-Plus the email address in Supabase Auth. **Review text, scores, tags and grades never leave the browser.**
+The email address is stored in Supabase Auth. **Pasted schedule text, review text, scores, tags and grades stay in the browser.**
 
 ## Out of v1
 
@@ -63,4 +71,4 @@ Firefox build, AI drafting, school-portal integrations, analytics.
 ## Accepted risks
 
 - **Autofill breaks when RMP changes its form.** All RMP selectors live in `extension/lib/rmp.ts` so fixes are one-file. Field `name` attributes (verified Nov 2026): `rating`, `difficulty`, `wouldTakeAgain`, `forCredit`, `usesTextbooks`, `attendanceMandatory`, `grade`, `class`, `comment`, tag checkboxes (`Toughgrader`, …).
-- **Track-only discovery** misses professors the student never looked up on RMP.
+- **Paste-in tracking depends on RMP's undocumented GraphQL search.** All code that calls it lives in `extension/lib/rmp.ts`.

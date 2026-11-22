@@ -10,6 +10,8 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL;
 if (!supabaseUrl) throw new Error('Set VITE_SUPABASE_URL in extension/.env (see .env.example)');
 
 export default defineConfig({
+  // Shown in the popup header so you can tell which build is loaded.
+  vite: () => ({ define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) } }),
   manifest: {
     name: 'ProfNudge',
     description:

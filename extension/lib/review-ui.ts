@@ -11,7 +11,7 @@ import {
   waitForSubmitSuccess,
   type YesNo,
 } from './rmp';
-import type { TrackedProfessor } from './types';
+import { courseKey, STATE_KEY, type AppState, type TrackedProfessor } from './types';
 import { chips, h, mountShadow } from './ui';
 
 const HOST_ID = 'profnudge-review';
@@ -42,7 +42,12 @@ export async function mountReviewPanel(prof: TrackedProfessor) {
   document.body.append(host);
   const root = mountShadow(host, CSS);
 
-  const courses = await readCourseOptions(document);
+  // The content script already selected a waiting term. Read its local course without syncing again.
+  const [courses, stored] = await Promise.all([
+    readCourseOptions(document),
+    browser.storage.local.get(STATE_KEY).catch(console.warn),
+  ]);
+  const local = stored?.[STATE_KEY] as Pick<AppState, 'courses'> | undefined;
 
   // Draft state
   const quality = new Set<string>();
@@ -56,6 +61,7 @@ export async function mountReviewPanel(prof: TrackedProfessor) {
   let commentEdited = false;
 
   const courseInput = h('input', { type: 'text', list: 'pn-courses', placeholder: courses[0] ?? 'e.g. COMP 110' });
+  courseInput.value = local?.courses?.[courseKey(prof.rmpId, prof.termKey)] ?? '';
   const courseList = h('datalist', { id: 'pn-courses' }, ...courses.map((c) => h('option', { value: c })));
   const online = h('input', { type: 'checkbox' });
   const grade = h('select', {}, h('option', { value: '' }, '—'), ...GRADES.map((g) => h('option', { value: g }, g)));

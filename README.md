@@ -8,7 +8,7 @@ ProfNudge is an open-source browser extension that reminds you to rate your prof
 
 ## How it works
 
-1. **Track** — click *Track* on any professor's Rate My Professors page while you pick classes.
+1. **Track** — paste your class schedule into *Add professors* in the ProfNudge popup, or click *Track* on a professor's Rate My Professors page.
 2. **Get nudged** — when your term ends you get one email listing everyone you haven't reviewed yet (three emails max, then it stops).
 3. **Review in a minute** — *Review now* opens the rating page. Tap scores and tags, answer a few sentence starters, hit *Fill form*. You check it and click Submit yourself.
 

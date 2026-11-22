@@ -1,15 +1,17 @@
 import * as api from '@/lib/api';
 import type { Reply } from '@/lib/messaging';
-import type { AppState, Msg, Term, TrackedProfessor } from '@/lib/types';
+import { schoolById, searchSchools, searchTeachers } from '@/lib/rmp';
+import { getRoster } from '@/lib/roster';
+import { courseKey, STATE_KEY, type AppState, type Msg, type RosterProgress, type Term, type TrackedProfessor } from '@/lib/types';
 
-const KEY = 'profnudge:state';
+const KEY = STATE_KEY;
 type Removed = { rmpId: number; termKey: string };
 /** `removed`: professors untracked locally whose server rows still need deleting. */
 type Local = Omit<AppState, 'email'> & { removed?: Removed[] };
 
 async function loadLocal(): Promise<Local> {
   const r = await browser.storage.local.get(KEY);
-  return (r[KEY] as Local | undefined) ?? { pendingEmail: null, professors: [], terms: [] };
+  return { pendingEmail: null, professors: [], terms: [], school: null, courses: {}, ...(r[KEY] as Partial<Local>) };
 }
 const saveLocal = (s: Local) => browser.storage.local.set({ [KEY]: s });
 
@@ -37,7 +39,41 @@ async function sync(): Promise<void> {
   await saveLocal({ ...s, pendingEmail: null, removed: [], terms: remote.terms, professors: remote.professors });
 }
 
-async function handle(msg: Msg): Promise<AppState> {
+type Query = Extract<Msg, { type: 'searchSchools' | 'schoolById' | 'loadRoster' | 'searchProfessors' }>;
+
+function reportRosterProgress(loaded: number, total: number) {
+  const progress: RosterProgress = { type: 'rosterProgress', loaded, total };
+  void browser.runtime.sendMessage(progress).catch(() => {});
+}
+
+async function handleQuery(msg: Query): Promise<Reply> {
+  let result: Promise<unknown>;
+  if (msg.type === 'searchSchools') {
+    result = searchSchools(msg.text).then((schools) => {
+      console.info('[ProfNudge] school search returned', schools.length);
+      return schools;
+    });
+  } else if (msg.type === 'schoolById') {
+    result = schoolById(msg.legacyId);
+  } else {
+    const { school } = await loadLocal();
+    if (!school) throw new Error('Pick your school first.');
+    result = msg.type === 'loadRoster'
+      ? getRoster(school, {
+        force: msg.force,
+        onProgress: reportRosterProgress,
+        onFetched: (profs, resultCount) => console.info('[ProfNudge] roster', school.name, profs.length, 'of', resultCount),
+      })
+      : searchTeachers(msg.text, school.id);
+  }
+  const data = await result.catch((error) => {
+    console.warn('[ProfNudge] RMP request failed:', error);
+    throw new Error("Couldn't reach Rate My Professors. You can still open a professor's page and click Track.");
+  });
+  return { ok: true, state: await state(), data };
+}
+
+async function handle(msg: Exclude<Msg, Query>): Promise<Reply> {
   const s = await loadLocal();
   const user = await api.currentUser();
 
@@ -62,10 +98,28 @@ async function handle(msg: Msg): Promise<AppState> {
       break;
     }
 
+    case 'trackMany':
+      upsertTermLocal(s, msg.term);
+      for (const { rmpId, name, school, course } of msg.profs) {
+        const key = courseKey(rmpId, msg.term.key);
+        if (course && !s.courses[key]) s.courses[key] = course;
+        if (s.professors.some((p) => p.rmpId === rmpId && p.termKey === msg.term.key)) continue;
+        s.professors.push({ rmpId, name, school, termKey: msg.term.key, status: 'waiting', nudgesSent: 0, synced: false });
+      }
+      await saveLocal(s);
+      if (user) await sync();
+      break;
+
+    case 'setSchool':
+      s.school = msg.school;
+      await saveLocal(s);
+      break;
+
     case 'untrack':
       // Remember the removal so the next sync deletes the server row too. Otherwise an untrack made
       // while signed out (or offline) is undone when sync pulls the server's copy.
       s.professors = s.professors.filter((p) => !(p.rmpId === msg.rmpId && p.termKey === msg.termKey));
+      delete s.courses[courseKey(msg.rmpId, msg.termKey)];
       s.removed = [...(s.removed ?? []), { rmpId: msg.rmpId, termKey: msg.termKey }];
       await saveLocal(s);
       if (user) await sync();
@@ -107,17 +161,26 @@ async function handle(msg: Msg): Promise<AppState> {
 
     case 'deleteAccount':
       await api.deleteAccount();
-      await saveLocal({ pendingEmail: null, professors: [], terms: [], removed: [] });
+      await saveLocal({ pendingEmail: null, professors: [], terms: [], removed: [], school: null, courses: {} });
       break;
   }
-  return state();
+  return { ok: true, state: await state() };
 }
 
 export default defineBackground(() => {
-  browser.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
-    handle(msg)
-      .then((st): Reply => ({ ok: true, state: st }))
-      .catch(async (e): Promise<Reply> => ({ ok: false, error: e?.message ?? String(e), state: await state() }))
+  // State changes and sync both write a full snapshot. Keep them from overwriting one another.
+  let pending = Promise.resolve();
+  browser.runtime.onMessage.addListener((msg: Msg | RosterProgress, _sender, sendResponse) => {
+    if (msg.type === 'rosterProgress') return;
+    let reply: Promise<Reply>;
+    if (msg.type === 'searchSchools' || msg.type === 'schoolById' || msg.type === 'loadRoster' || msg.type === 'searchProfessors') {
+      reply = handleQuery(msg);
+    } else {
+      reply = pending.then(() => handle(msg));
+      pending = reply.then(() => {}, () => {});
+    }
+    reply
+      .catch(async (e): Promise<Reply> => ({ ok: false, error: e?.message ?? String(e), state: await state().catch(() => undefined) }))
       .then(sendResponse);
     return true; // async response
   });

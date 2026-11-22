@@ -1,3 +1,5 @@
+import type { RosterProf, School } from './types';
+
 /**
  * Everything that depends on Rate My Professors' markup lives in this file.
  * When RMP changes its site and autofill breaks, fix it here.
@@ -222,4 +224,226 @@ export function waitForSubmitSuccess(doc: Document, timeoutMs = 60_000): Promise
       else if (Date.now() - started > timeoutMs) finish(false);
     }, 500);
   });
+}
+
+// ---------- RMP search ----------
+
+export const RMP_GRAPHQL = `${RMP_ORIGIN}/graphql`;
+
+const SCHOOL_SEARCH = `
+  query SearchSchools($query: SchoolSearchQuery!, $first: Int!) {
+    newSearch {
+      schools(query: $query, first: $first) {
+        edges { node { id legacyId name city state } }
+      }
+    }
+  }
+`;
+
+const SCHOOL_AUTOCOMPLETE = `
+  query AutocompleteSearchQuery($query: String!) {
+    autocomplete(query: $query) {
+      schools {
+        edges { node { id legacyId name city state } }
+      }
+    }
+  }
+`;
+
+const SCHOOL_BY_ID = `
+  query SchoolById($id: ID!) {
+    node(id: $id) {
+      ... on School { id legacyId name city state }
+    }
+  }
+`;
+
+const TEACHER_SEARCH = `
+  query SearchTeachers($query: TeacherSearchQuery!, $first: Int!, $after: String) {
+    newSearch {
+      teachers(query: $query, first: $first, after: $after) {
+        edges { node { legacyId firstName lastName department numRatings } }
+        pageInfo { hasNextPage endCursor }
+        resultCount
+      }
+    }
+  }
+`;
+
+type Edge<T> = { node: T };
+type TeacherNode = Omit<RosterProf, 'rmpId'> & { legacyId: number };
+type TeacherPage = {
+  edges: Edge<TeacherNode>[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  resultCount: number;
+};
+
+type GraphqlErrors = { message: string }[];
+type SearchConnections = {
+  newSearch?: { schools?: { edges: unknown[] }; teachers?: { edges: unknown[] } };
+  autocomplete?: { schools?: { edges: unknown[] } };
+};
+
+async function graphql<T>(operationName: string, query: string, variables: object, fetchImpl: typeof fetch): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  let status: number | null = null;
+  let edgeCount: number | null = null;
+  let errors: GraphqlErrors | undefined;
+  try {
+    console.info('[ProfNudge] RMP', operationName, variables);
+    const response = await fetchImpl(RMP_GRAPHQL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Basic dGVzdDp0ZXN0' },
+      body: JSON.stringify({ operationName, query, variables }),
+      signal: controller.signal,
+    });
+    status = response.status;
+    const payload = await response.json().catch((error: unknown) => {
+      if (status === 200) throw error;
+      return {};
+    }) as { data?: T & SearchConnections; errors?: GraphqlErrors } | null;
+    const data = payload?.data;
+    errors = payload?.errors;
+    const connections = data?.newSearch;
+    edgeCount = connections?.schools?.edges?.length ?? connections?.teachers?.edges?.length
+      ?? data?.autocomplete?.schools?.edges?.length ?? null;
+    if (status !== 200) throw new Error(`Rate My Professors returned HTTP ${status}.`);
+    if (errors?.length) throw new Error(`Rate My Professors search failed: ${errors.map((e) => e.message).join('; ')}`);
+    if (!data) throw new Error('Rate My Professors returned no search data.');
+    return data;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Rate My Professors search timed out.');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    console.info('[ProfNudge] RMP', operationName, { variables, status, edgeCount, errors: errors ?? [] });
+  }
+}
+
+export function parseSchoolLink(text: string): number | null {
+  const input = text.trim();
+  let digits: string | null = input;
+  if (!/^\d+$/.test(input)) {
+    const address = /^(?:https?:\/\/|\/)/i.test(input) ? input : `https://${input}`;
+    let url: URL;
+    try {
+      url = new URL(address, RMP_ORIGIN);
+    } catch {
+      return null;
+    }
+    if (!/^https?:$/.test(url.protocol) || !/^(?:www\.)?ratemyprofessors\.com$/.test(url.hostname)) {
+      return null;
+    }
+    const pathId = url.pathname.match(/^\/(?:school|search\/professors)\/(\d+)\/?$/)?.[1];
+    const queryId = /^\/search\/teachers\/?$/.test(url.pathname) ? url.searchParams.get('sid') : null;
+    digits = pathId ?? queryId;
+  }
+  if (!digits || !/^\d+$/.test(digits)) return null;
+  const id = Number(digits);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+export async function schoolById(legacyId: number, fetchImpl = fetch): Promise<School> {
+  const id = btoa(`School-${legacyId}`);
+  const data = await graphql<{ node: School | null }>('SchoolById', SCHOOL_BY_ID, { id }, fetchImpl).catch(() => null);
+  if (data?.node?.id) return data.node;
+  return { id, legacyId, name: `School #${legacyId}`, city: '', state: '' };
+}
+
+const GENERIC_SCHOOL_WORDS = new Set(['university', 'college', 'state', 'of', 'the', 'at', 'california']);
+
+function cleanSchoolName(name: string): string {
+  return name.replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim();
+}
+
+async function searchSchoolNames(text: string, fetchImpl: typeof fetch): Promise<School[]> {
+  const data = await graphql<{ newSearch: { schools: { edges: Edge<School>[] } } }>(
+    'SearchSchools', SCHOOL_SEARCH, { query: { text }, first: 50 }, fetchImpl,
+  );
+  return data.newSearch.schools.edges.map(({ node }) => node);
+}
+
+async function autocompleteSchools(text: string, fetchImpl: typeof fetch): Promise<School[]> {
+  const data = await graphql<{ autocomplete: { schools: { edges: Edge<School>[] } } }>(
+    'AutocompleteSearchQuery', SCHOOL_AUTOCOMPLETE, { query: text }, fetchImpl,
+  );
+  return data.autocomplete.schools.edges.map(({ node }) => node);
+}
+
+export async function searchSchools(text: string, fetchImpl = fetch): Promise<School[]> {
+  const id = parseSchoolLink(text);
+  if (id !== null) return [await schoolById(id, fetchImpl)];
+
+  const name = cleanSchoolName(text);
+  if (!name) return [];
+
+  const expandedSystem = name.replace(/(?<!\S)(?:cal state|csu)(?!\S)/gi, 'California State University');
+  const expanded = expandedSystem.replace(/(?<!\S)csun(?: northridge)?(?!\S)/gi, 'California State University Northridge');
+  const distinctive = expandedSystem.split(' ')
+    .filter((word) => word.toLowerCase() !== 'csun' && !GENERIC_SCHOOL_WORDS.has(word.toLowerCase()))
+    .join(' ');
+  const variants = [...new Set([name, distinctive, expanded].filter(Boolean))];
+  const results = await Promise.allSettled([
+    ...variants.map((variant) => searchSchoolNames(variant, fetchImpl)),
+    autocompleteSchools(name, fetchImpl),
+  ]);
+  const schools = new Map<string, School>();
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      for (const school of result.value) {
+        if (!schools.has(school.id)) schools.set(school.id, school);
+      }
+    }
+  }
+  const first = results[0];
+  if (first?.status === 'rejected' && results.every((result) => result.status === 'rejected')) throw first.reason;
+
+  const typedWords = [...new Set(expanded.toLowerCase().split(' '))];
+  const ranked = [...schools.values()].map((school) => {
+    const schoolName = cleanSchoolName(school.name);
+    const schoolWords = new Set(`${schoolName} ${cleanSchoolName(school.city ?? '')}`.toLowerCase().split(' '));
+    const score = typedWords.filter((word) => schoolWords.has(word)).length;
+    return { school, score, lengthDifference: Math.abs(schoolName.length - expanded.length) };
+  });
+  ranked.sort((a, b) => b.score - a.score || a.lengthDifference - b.lengthDifference);
+  return ranked.slice(0, 10).map(({ school }) => school);
+}
+
+async function searchTeacherPage(text: string, schoolID: string, first: number, after: string, fetchImpl: typeof fetch) {
+  const data = await graphql<{ newSearch: { teachers: TeacherPage } }>(
+    'SearchTeachers', TEACHER_SEARCH, { query: { text, schoolID }, first, after }, fetchImpl,
+  );
+  const { edges, pageInfo, resultCount } = data.newSearch.teachers;
+  const profs = edges.map(({ node: { legacyId, ...prof } }) => ({ rmpId: legacyId, ...prof }));
+  return { profs, pageInfo, resultCount };
+}
+
+export async function searchTeachers(text: string, schoolId: string, first = 20, fetchImpl = fetch): Promise<RosterProf[]> {
+  const { profs } = await searchTeacherPage(text, schoolId, first, '', fetchImpl);
+  return profs;
+}
+
+export async function fetchRoster(
+  schoolId: string,
+  onProgress?: (loaded: number, total: number) => void,
+  fetchImpl = fetch,
+): Promise<{ profs: RosterProf[]; resultCount: number }> {
+  const roster = new Map<number, RosterProf>();
+  const cursors = new Set<string>();
+  let after = '';
+  let total = 0;
+  for (let page = 0; page < 50; page++) {
+    // The Python RMP client's school-wide roster request uses a single space.
+    const { profs, pageInfo, resultCount } = await searchTeacherPage(' ', schoolId, 20, after, fetchImpl);
+    for (const prof of profs) roster.set(prof.rmpId, prof);
+    total = resultCount;
+    onProgress?.(roster.size, total);
+    const next = pageInfo.endCursor;
+    if (!pageInfo.hasNextPage || !next || cursors.has(next)) break;
+    cursors.add(next);
+    after = next;
+  }
+  if (roster.size < total) console.warn(`Rate My Professors returned ${roster.size} of ${total} professors.`);
+  return { profs: [...roster.values()], resultCount: total };
 }

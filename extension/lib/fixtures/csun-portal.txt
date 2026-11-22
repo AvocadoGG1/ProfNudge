@@ -1,0 +1,25 @@
+Course: COMP310
+AUTO LANG+COMPUTN
+Class #: 10001    TuTh 10:00AM-11:15AM
+Location: Jacaranda 1600A
+Instructor: Marisol Lindqvist
+Course: COMP322
+INTRO OPRTNG SYST
+Class #: 10002    MoWe 08:30AM-09:45AM
+Location: Jacaranda 1538
+Instructor: Colin Brambleton
+Course: COMP322L
+OPRTNG SYSTMS LAB
+Class #: 10003    MoWe 10:00AM-11:15AM
+Location: Jacaranda 1538
+Instructor: Colin Brambleton
+Course: COMP333
+CONCPTS PROG LANG
+Class #: 10004    TuTh 01:00PM-02:15PM
+Location: Jacaranda 1600
+Instructor: Rhea Corvington
+Course: MATH262
+INTRO LINEAR ALGEBRA
+Class #: 10005    MoWe 02:30PM-03:45PM
+Location: Live Oak Hall 1325
+Instructor: Jonas Castellan

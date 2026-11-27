@@ -60,3 +60,6 @@ button.link { border: 0; padding: 0; text-decoration: underline; color: inherit;
 .paste-candidate input { margin: 3px 0 0; accent-color: var(--brand); }
 .paste-candidate.tracked { color: var(--muted); }
 .paste-possible { padding-left: 19px; }
+.support { padding: 6px 16px 12px; font-size: 12px; color: #666; text-align: center; }
+.support a { color: #3b5bdb; font-weight: 600; text-decoration: none; }
+.support a:hover { text-decoration: underline; }

@@ -11,6 +11,9 @@ const paste = createPastePanel((msg) => act(msg, false));
 app.append(top, paste.element, bottom);
 let error = '';
 
+// Optional "Support ProfNudge" link (Buy Me a Coffee, Ko-fi, GitHub Sponsors...). Hidden when unset.
+const supportUrl: string | undefined = import.meta.env.VITE_SUPPORT_URL;
+
 async function act(msg: Msg, showError = true) {
   const r: Reply = await send(msg);
   if (showError) error = r.ok ? '' : r.error;
@@ -92,7 +95,15 @@ function render(st: AppState) {
 
   top.replaceChildren(header, ...(account ? [account] : []), ...(error ? [h('div', { class: 'err' }, error)] : []));
   paste.update(st);
-  bottom.replaceChildren(...body, ...(footer ? [footer] : []));
+  const support = supportUrl
+    ? h(
+        'div',
+        { class: 'support' },
+        'ProfNudge is free. ',
+        h('a', { href: supportUrl, target: '_blank', rel: 'noopener' }, 'Support ProfNudge ♥'),
+      )
+    : null;
+  bottom.replaceChildren(...body, ...(footer ? [footer] : []), ...(support ? [support] : []));
 }
 
 function signInSection(st: AppState) {
